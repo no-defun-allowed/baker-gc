@@ -1,0 +1,38 @@
+A rough implementation of 
+[[https://www.cs.purdue.edu/homes/hosking/690M/p280-baker.pdf][ /List Processing in Real Time on a Serial Computer/ ]], which can collect
+allocated conses incrementally, and somewhat conservatively (on the stack and
+registers). However, the client must use a read barrier (as implemented by the
+=car= and =cdr= functions provided.) 
+
+This utterly abuses =setjmp= and how stacks appear to work on my machine, so
+by using this code, you agree to not sue me for limbs lost to it. One can trace
+roots (no pun intended) to [[https://medium.com/@MartinCracauer/llvms-garbage-collection-facilities-and-sbcl-s-generational-gc-a13eedfb1b31][SBCL's semi-conservative copying collector]] and the
+[[https://wiki.openjdk.java.net/display/shenandoah/Main][Shenandoah JVM garbage collector]], which are not likely to blow your limbs off.
+
+** How it works
+
+*** Allocation
+
+Conses are organised into pages (=struct page= of =pages.h=), with each page 
+16KiB wide. Each cons is a triple <forwarding pointer, car, cdr>. We allocate
+from the start of a page to its end, as typical for compacting collectors. 
+
+*** Scanning
+
+At the start of a collection run, the stack and registers are scanned for roots.
+The registers are scanned by using =setjmp= to "spill" the registers into the
+stack, and the stack can be carefully probed for values that look like pointers
+into the heap.
+
+/TODO:/ Checking what looks like a pointer can be done better with some 
+heuristics instead of iterating over pages most of the time; provided pages are
+allocated mostly contiguously, then we can eliminate most pointers outside the
+heap by checking for presence in an interval holding all pages.
+
+*** Barriers
+
+We use a /Brooks forwarding pointer/ instead of replacing moved conses with 
+marker objects, allowing the client to unconditionally load the forwaring 
+pointer. When an object has not been moved, this pointer points to the object
+itself; and when an object has been moved, it points to the newspace copy of
+the object. =car(x)= thus is equivalent to =x->forward->car=.
