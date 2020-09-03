@@ -55,3 +55,9 @@ void gc_work(int steps) {
     next_to_copy++;
   }
 }
+
+int steps_per_cons = 2;
+cons_t cons(cons_t car, cons_t cdr) {
+  gc_work(steps_per_cons);
+  return make_cons(car, cdr);
+}

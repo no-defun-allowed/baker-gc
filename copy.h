@@ -8,4 +8,6 @@ cons_t copy(cons_t);
 
 void gc_setup(void);
 void gc_work(int);
+cons_t cons(cons_t, cons_t);
+extern int steps_per_cons;
 #endif

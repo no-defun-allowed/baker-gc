@@ -2,21 +2,21 @@
 #include <stdio.h>
 
 cons_t bar() {
-  cons_t a = make_cons(NULL, NULL);
+  cons_t a = cons(NULL, NULL);
   make_page();
-  cons_t b = make_cons(NULL, a);
+  cons_t b = cons(NULL, a);
   make_page();                  /* put everything else on another page */
   return b;
 }
 cons_t foo() {
-  cons_t b = make_cons(NULL, bar());
-  printf("b = %p, cddr = %p\n", b, cdr(cdr(b)));
+  cons_t b = cons(NULL, bar());
+  printf("b = %p, cddr = %p\n", b, b->cdr->cdr);
   scan_stack(start_of_stack, print_cons);
   /* do a GC */
   gc_setup();
-  gc_work(8);
+  gc_work(128);
   /* did anything move? */
-  printf("b = %p, cddr = %p\n", b, cdr(cdr(b)));
+  printf("b = %p, cddr = %p\n", b, b->cdr->cdr);
   return b;
 }
 
