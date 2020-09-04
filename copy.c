@@ -33,11 +33,27 @@ void scan_cons(cons_t c) {
   c->cdr = copy(c->cdr);
 }
 
+#ifdef GC_REPORT_STATUS
+#include <sys/time.h>
+long microseconds(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec * 1000000 + tv.tv_usec;
+}
+#endif
+
 void gc_setup(void) {
+#ifdef GC_REPORT_STATUS
+  long start_time = microseconds();
+#endif
   flip();
   first_page = last_page;
   next_cons = next_to_copy = &first_page->data[0];
   scan_stack((char*)start_of_stack, scan_cons);
+#ifdef GC_REPORT_STATUS
+  long end_time = microseconds();
+  printf("gc: STW took %ld microseconds\n", end_time - start_time);
+#endif
 }
 
 void gc_work(int steps) {

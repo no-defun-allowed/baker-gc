@@ -119,3 +119,20 @@ void flip(void) {
   set_interval();
   allocate_page();
 }
+
+// Get the room (memory usage)
+room_t room(void) {
+  long oldspace_pages = 0, oldspace_bytes = 0,
+       newspace_pages = 0, newspace_bytes = 0;
+  for (page_t page = oldspace; page != NULL; page = page->previous_page) {
+    oldspace_pages++;
+    oldspace_bytes += (intptr_t)page->allocated - (intptr_t)page->data;
+  }
+  for (page_t page = last_page; page != NULL; page = page->previous_page) {
+    newspace_pages++;
+    newspace_bytes += (intptr_t)page->allocated - (intptr_t)page->data;
+  }
+  room_t the_room = {oldspace_pages, oldspace_bytes,
+                     newspace_pages, newspace_bytes};
+  return the_room;
+}

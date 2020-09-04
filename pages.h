@@ -35,4 +35,13 @@ _Bool forwarded(cons_t);
 _Bool pinned(cons_t);
 
 void flip(void);
+
+struct room_data {
+  long oldspace_pages;
+  long oldspace_bytes;
+  long newspace_pages;
+  long newspace_bytes;
+};
+typedef struct room_data room_t;
+room_t room(void);
 #endif
