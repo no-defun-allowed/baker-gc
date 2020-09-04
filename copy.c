@@ -15,11 +15,6 @@ cons_t copy(cons_t c) {
     return c;
   if (!in_heap(c))
     return c;                   /* don't move cons in newspace */
-  if (pinned(c)) {
-    c->car = copy(c->car);
-    c->cdr = copy(c->cdr);
-    return c;
-  }
   if (forwarded(c))
     return c->forward;          /* don't duplicate already moved cons */
   cons_t new_cons = make_cons(c->car, c->cdr);

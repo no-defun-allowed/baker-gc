@@ -68,7 +68,7 @@ cons_t test2() {
 }
 
 cons_t test3() {
-  cons_t t = make_tree(15);
+  cons_t t = make_tree(20);
   print_room(room());
   return t;
 }
