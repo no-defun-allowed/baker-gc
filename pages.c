@@ -43,7 +43,23 @@ _Bool in_page(cons_t pointer, page_t page) {
          pointer < page->allocated;
 }
 
+// Lower and upper bounds for oldspace pages
+void* low = NULL;
+void* high = NULL;
+
+void set_interval(void) {
+  low =  (void*)((intptr_t)~1);
+  high = (void*)((intptr_t)0);
+  for (page_t page = oldspace; page != NULL; page = page->previous_page) {
+    low = (void*)page < low ? page : low;
+    void* end = end_of_page(page);
+    high = end > high ? end : high;
+  }
+}
+
 _Bool in_heap(cons_t pointer) {
+  if (!((void*)pointer < high && (void*)pointer > low))
+    return false;               // Quite obviously not in a page.
   for (page_t page = oldspace; page != NULL; page = page->previous_page)
     if (in_page(pointer, page)) return true;
   return false;
@@ -66,14 +82,15 @@ cons_t make_cons(cons_t car, cons_t cdr) {
 }
 
 cons_t car(cons_t c) { return c->forward->car; }
-/* remove the secret pinned-with-copied-slots tag */
 cons_t cdr(cons_t c) { return c->forward->cdr; }
 page_t page(cons_t c) { return (page_t)((intptr_t)(c) / PAGE_SIZE * PAGE_SIZE); }
 _Bool forwarded(cons_t c) { return c->forward != c; }
 _Bool pinned(cons_t c) { return page(c)->pinned; }
 
 void flip(void) {
+#ifdef GC_REPORT_STATUS
   puts("gc: Flipping...");
+#endif
   /* clear up oldspace */
   int freed_pages = 0, pinned_pages = 0;
   page_t page = oldspace;
@@ -93,9 +110,12 @@ void flip(void) {
     }
     page = next_page;
   }
+#ifdef GC_REPORT_STATUS
   printf("gc: %d pages freed, %d pages still pinned\n", freed_pages, pinned_pages);
+#endif
   /* set up the next oldspace and newspace */
   oldspace = last_page;
   last_page = NULL;
+  set_interval();
   allocate_page();
 }
