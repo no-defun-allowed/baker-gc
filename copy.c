@@ -16,11 +16,8 @@ cons_t copy(cons_t c) {
   if (!in_heap(c))
     return c;                   /* don't move cons in newspace */
   if (pinned(c)) {
-    if ((intptr_t)c->cdr & 1 == 1)  /* secret bit telling us if we copied already */
-      return c;
-    /* don't move pinned cons, copy its slots */
     c->car = copy(c->car);
-    c->cdr = (cons_t)((intptr_t)copy(c->cdr) | 1);
+    c->cdr = copy(c->cdr);
     return c;
   }
   if (forwarded(c))
@@ -38,7 +35,6 @@ void scan_cons(cons_t c) {
 
 void gc_setup(void) {
   flip();
-  allocate_page();
   first_page = last_page;
   next_cons = next_to_copy = &first_page->data[0];
   scan_stack((char*)start_of_stack, scan_cons);

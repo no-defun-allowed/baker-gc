@@ -29,12 +29,13 @@ void allocate_page(void) {
   new_page->size = PAGE_SIZE;
   new_page->next_page = NULL;
   new_page->allocated = new_page->data;
+  new_page->pinned = false;
   push_onto_list(new_page, &last_page);
   next_cons = new_page->data;
 }
 
 cons_t end_of_page(page_t page) {
-  return (cons_t)((intptr_t)page + PAGE_SIZE);
+  return (cons_t)((intptr_t)page + page->size);
 }
 
 _Bool in_page(cons_t pointer, page_t page) {
@@ -66,8 +67,8 @@ cons_t make_cons(cons_t car, cons_t cdr) {
 
 cons_t car(cons_t c) { return c->forward->car; }
 /* remove the secret pinned-with-copied-slots tag */
-cons_t cdr(cons_t c) { return (cons_t)((intptr_t)c->forward->cdr & (intptr_t)~1); }
-page_t page(cons_t c) { return (page_t)((intptr_t)c / PAGE_SIZE * PAGE_SIZE); }
+cons_t cdr(cons_t c) { return c->forward->cdr; }
+page_t page(cons_t c) { return (page_t)((intptr_t)(c) / PAGE_SIZE * PAGE_SIZE); }
 _Bool forwarded(cons_t c) { return c->forward != c; }
 _Bool pinned(cons_t c) { return page(c)->pinned; }
 
@@ -75,16 +76,23 @@ void flip(void) {
   puts("gc: Flipping...");
   /* clear up oldspace */
   int freed_pages = 0, pinned_pages = 0;
-  for (page_t page = oldspace; page != NULL; page = page->previous_page)
+  page_t page = oldspace;
+  while (page != NULL) {
+    page_t next_page;
+    next_page = page->previous_page;
     if (page->pinned) {
+      /* Move this page to newspace. */
       page->next_page = NULL;
       page->previous_page = last_page;
+      page->pinned = false;
       last_page = page;
       pinned_pages++;
     } else {
       free(page);
       freed_pages++;
     }
+    page = next_page;
+  }
   printf("gc: %d pages freed, %d pages still pinned\n", freed_pages, pinned_pages);
   /* set up the next oldspace and newspace */
   oldspace = last_page;

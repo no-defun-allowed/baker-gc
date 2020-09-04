@@ -25,7 +25,7 @@ void scan_stack2(char* start, char* end, cons_consumer_t k) {
 void scan_stack(char* start, cons_consumer_t k) {
   jmp_buf j;
   setjmp(j);
-  char* end = (char*)j;
+  char* end = ((char*)(&j) + sizeof(j));
   if (start > end)
     scan_stack2(end, start, k);
   else if (end > start)
