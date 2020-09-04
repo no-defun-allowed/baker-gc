@@ -70,16 +70,20 @@ _Bool forwarded(cons_t c) { return c->forward != c; }
 _Bool pinned(cons_t c) { return page(c)->pinned; }
 
 void flip(void) {
-  puts("Flipping...");
+  puts("gc: Flipping...");
   /* clear up oldspace */
+  int freed_pages = 0, pinned_pages = 0;
   for (page_t page = oldspace; page != NULL; page = page->previous_page)
     if (page->pinned) {
       page->next_page = NULL;
       page->previous_page = last_page;
       last_page = page;
+      pinned_pages++;
     } else {
       free(page);
+      freed_pages++;
     }
+  printf("gc: %d pages freed, %d pages still pinned\n", freed_pages, pinned_pages);
   /* set up the next oldspace and newspace */
   oldspace = last_page;
   last_page = NULL;

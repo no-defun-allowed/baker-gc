@@ -1,8 +1,11 @@
+CFLAGS=-g
+CC=gcc
+
 test: gc-test.o copy.o scan-stack.o pages.o
-	gcc $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 %.o: %.c
-	gcc -c $^ -o $@
+	$(CC) $(CFLAGS) -c $^ -o $@
 
 clean:
 	rm -f *.o
