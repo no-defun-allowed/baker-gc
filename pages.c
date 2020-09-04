@@ -50,7 +50,8 @@ _Bool in_heap(cons_t pointer) {
 
 cons_t make_cons(cons_t car, cons_t cdr) {
  again:
-  if (last_page != NULL && next_cons < end_of_page(last_page)) {
+  if (last_page != NULL &&
+      (next_cons + sizeof(struct cons)) < end_of_page(last_page)) {
     cons_t this = next_cons++;
     this->car = car;
     this->cdr = cdr;
@@ -64,7 +65,8 @@ cons_t make_cons(cons_t car, cons_t cdr) {
 }
 
 cons_t car(cons_t c) { return c->forward->car; }
-cons_t cdr(cons_t c) { return c->forward->cdr; }
+/* remove the secret pinned-with-copied-slots tag */
+cons_t cdr(cons_t c) { return (cons_t)((intptr_t)c->forward->cdr & (intptr_t)~1); }
 page_t page(cons_t c) { return (page_t)((intptr_t)c / PAGE_SIZE * PAGE_SIZE); }
 _Bool forwarded(cons_t c) { return c->forward != c; }
 _Bool pinned(cons_t c) { return page(c)->pinned; }

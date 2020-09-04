@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "pages.h"
 #include "copy.h"
 
@@ -15,9 +16,11 @@ cons_t copy(cons_t c) {
   if (!in_heap(c))
     return c;                   /* don't move cons in newspace */
   if (pinned(c)) {
+    if ((intptr_t)c->cdr & 1 == 1)  /* secret bit telling us if we copied already */
+      return c;
     /* don't move pinned cons, copy its slots */
     c->car = copy(c->car);
-    c->cdr = copy(c->cdr);
+    c->cdr = (cons_t)((intptr_t)copy(c->cdr) | 1);
     return c;
   }
   if (forwarded(c))
@@ -42,6 +45,8 @@ void gc_setup(void) {
 }
 
 void gc_work(int steps) {
+  if (first_page == NULL)
+    gc_setup();
   for (int x = 0; x < steps; x++) {
     if (next_to_copy == next_cons) {
       gc_setup();
