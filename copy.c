@@ -35,7 +35,7 @@ void scan_cons(cons_t c) {
 
 void gc_setup(void) {
   flip();
-  make_page();
+  allocate_page();
   first_page = last_page;
   next_cons = next_to_copy = &first_page->data[0];
   scan_stack((char*)start_of_stack, scan_cons);
@@ -48,8 +48,17 @@ void gc_work(int steps) {
       return;
     }
     page_t this_page = page(next_to_copy);
+    /* There appears to be nothing else to copy onto this page. 
+       Move to the next one. */
     if (!in_page(next_to_copy, this_page))
       next_to_copy = &first_page->next_page->data[0];
+    /* next_cons could be at the start of a page with no conses if the user
+       calls allocate_page() directly, so we could also run out of conses to 
+       copy. */
+    if (next_to_copy == next_cons) {
+      gc_setup();
+      return;
+    }
     next_to_copy->car = copy(next_to_copy->car);
     next_to_copy->cdr = copy(next_to_copy->cdr);
     next_to_copy++;

@@ -23,7 +23,7 @@ typedef struct page* page_t;
 extern page_t last_page;
 extern cons_t next_cons;
 
-void make_page(void);
+void allocate_page(void);
 _Bool in_page(cons_t pointer, page_t page);
 _Bool in_heap(cons_t pointer);
 cons_t make_cons(cons_t, cons_t);

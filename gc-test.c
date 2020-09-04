@@ -3,9 +3,9 @@
 
 cons_t bar() {
   cons_t a = cons(NULL, NULL);
-  make_page();
+  allocate_page();
   cons_t b = cons(NULL, a);
-  make_page();                  /* put everything else on another page */
+  allocate_page();           /* put everything else on another page */
   return b;
 }
 cons_t foo() {

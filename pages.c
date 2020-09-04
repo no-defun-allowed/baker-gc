@@ -19,13 +19,13 @@ void push_onto_list(page_t page, page_t* list) {
   *list = page;
 }
 
-void make_page(void) {
+void allocate_page(void) {
   page_t new_page = memalign(PAGE_SIZE, PAGE_SIZE);
   if (!new_page) {
     perror("Failed to allocate a page");
     abort();
   }
-  // Link this page into the list of pages.
+  /* Link this page into the list of pages. */
   new_page->size = PAGE_SIZE;
   new_page->next_page = NULL;
   new_page->allocated = new_page->data;
@@ -58,7 +58,7 @@ cons_t make_cons(cons_t car, cons_t cdr) {
     last_page->allocated++;
     return this;
   } else {
-    make_page();
+    allocate_page();
     goto again;
   }
 }
@@ -70,6 +70,7 @@ _Bool forwarded(cons_t c) { return c->forward != c; }
 _Bool pinned(cons_t c) { return page(c)->pinned; }
 
 void flip(void) {
+  puts("Flipping...");
   /* clear up oldspace */
   for (page_t page = oldspace; page != NULL; page = page->previous_page)
     if (page->pinned) {
@@ -82,5 +83,5 @@ void flip(void) {
   /* set up the next oldspace and newspace */
   oldspace = last_page;
   last_page = NULL;
-  make_page();
+  allocate_page();
 }
