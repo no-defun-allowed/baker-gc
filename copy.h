@@ -2,8 +2,11 @@
 #define COPY_H
 
 #include <stddef.h>
+#include <stdbool.h>
 #include "pages.h"
 #include "scan-stack.h"
+
+extern _Bool disable_gc;
 cons_t copy(cons_t);
 
 void gc_setup(void);

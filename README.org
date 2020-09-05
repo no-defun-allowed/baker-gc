@@ -2,7 +2,11 @@
 2018-10-08 08:31 <no-defun-allowed> i'm going to create the world's first conservative copying collector
 #+END_QUOTE
 
-A rough implementation of 
+2018 =no-defun-allowed= did in fact not create a conservative copying collector,
+nor would she have been /even close/ to being first to do it. But 2020
+=no-defun-allowed= has a conservative copying collector at least.
+
+This is a rough implementation of 
 [[https://www.cs.purdue.edu/homes/hosking/690M/p280-baker.pdf][ /List Processing in Real Time on a Serial Computer/ ]], which can collect
 allocated conses incrementally, and somewhat conservatively (on the stack and
 registers). However, the client must use a read barrier (as implemented by the
@@ -12,6 +16,8 @@ This utterly abuses =setjmp= and how stacks appear to work on my machine, so
 by using this code, you agree to not sue me for limbs lost to it. One can trace
 roots (no pun intended) to [[https://medium.com/@MartinCracauer/llvms-garbage-collection-facilities-and-sbcl-s-generational-gc-a13eedfb1b31][SBCL's semi-conservative copying collector]] and the
 [[https://wiki.openjdk.java.net/display/shenandoah/Main][Shenandoah JVM garbage collector]], which are not likely to blow your limbs off.
+The stack walking code was also gleaned off 
+[[http://clim.rocks/gilbert/mark-sweep.c][Gilbert Baumann's mark-sweep implementation]].
 
 ** How it works
 

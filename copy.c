@@ -10,6 +10,7 @@ extern cons_t next_cons;
 cons_t next_to_copy = NULL;
 page_t first_page = NULL;
 _Bool gc_running = false;
+_Bool disable_gc = false;
 
 cons_t copy(cons_t c) {
   if (c == NULL)
@@ -86,6 +87,7 @@ void gc_work(int steps) {
 
 int steps_per_cons = 3;
 cons_t cons(cons_t car, cons_t cdr) {
-  gc_work(steps_per_cons);
+  if (!disable_gc)
+    gc_work(steps_per_cons);
   return make_cons(car, cdr);
 }
