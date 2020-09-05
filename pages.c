@@ -12,7 +12,7 @@ int last_pages = 0;
 page_t last_page = NULL;
 cons_t next_cons = NULL;
 int new_pages = 0;
-int threshold_pages = 5;
+int threshold_pages = 1;
 
 void push_onto_list(page_t page, page_t* list) {
   page->previous_page = *list;
@@ -120,8 +120,8 @@ void flip(void) {
   /* set up the next oldspace and newspace */
   oldspace = last_page;
   last_page = NULL;
-  threshold_pages = new_pages > 10 ? new_pages : 10;
   last_pages = new_pages;
+  threshold_pages = pinned_pages + new_pages / 2;
   new_pages = 0;
   set_interval();
   allocate_page();

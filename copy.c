@@ -85,7 +85,7 @@ void gc_work(int steps) {
   }
 }
 
-int steps_per_cons = 3;
+int steps_per_cons = 2;
 cons_t cons(cons_t car, cons_t cdr) {
   if (!disable_gc)
     gc_work(steps_per_cons);

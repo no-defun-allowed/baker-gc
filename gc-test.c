@@ -51,6 +51,8 @@ cons_t bar() {
   return b;
 }
 cons_t test1() {
+  puts("Test: copy a list. The following lists should be of the same length, ");
+  puts("      but some parts may be copied.");
   cons_t b = bar();
   print_list(b);
   gc_work(131072);
@@ -60,6 +62,8 @@ cons_t test1() {
 }
 
 cons_t test2() {
+  puts("Test: copy a cons with (eq (car it) (cdr it)), which should still ");
+  puts("      hold after copying.");
   cons_t a = cons(NULL, NULL);
   cons_t b = cons(a, a);
   gc_work(131072);
@@ -68,9 +72,18 @@ cons_t test2() {
 }
 
 cons_t test3() {
-  cons_t t = make_tree(20);
+  puts("Test: generate a large tree while producing a lot of garbage, to ");
+  puts("      increase the collection threshold.");
+  cons_t t = make_tree(25);
   print_room(room());
   return t;
+}
+
+cons_t test4() {
+  puts("Test: generate less garbage to decrease the collection threshold.");
+  /* Will the target decrease if we have fewer still-live pages? */
+  for (int i = 0; i < 1024; i++)
+    make_list(64);
 }
 
 int main() {
@@ -81,5 +94,8 @@ int main() {
   test1();
   test2();
   test3();
+  test4();
+  gc_work(1000000);
+  print_room(room());
   return 0;
 }
