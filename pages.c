@@ -7,9 +7,11 @@
 
 // Oldspace
 page_t oldspace = NULL;
+int last_pages = 0;
 // Newspace
 page_t last_page = NULL;
 cons_t next_cons = NULL;
+int new_pages = 0;
 
 void push_onto_list(page_t page, page_t* list) {
   page->previous_page = *list;
@@ -32,6 +34,7 @@ void allocate_page(void) {
   new_page->pinned = false;
   push_onto_list(new_page, &last_page);
   next_cons = new_page->data;
+  new_pages++;
 }
 
 cons_t end_of_page(page_t page) {
@@ -116,6 +119,8 @@ void flip(void) {
   /* set up the next oldspace and newspace */
   oldspace = last_page;
   last_page = NULL;
+  last_pages = new_pages;
+  new_pages = 0;
   set_interval();
   allocate_page();
 }

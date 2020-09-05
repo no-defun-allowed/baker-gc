@@ -9,6 +9,7 @@
 extern cons_t next_cons;
 cons_t next_to_copy = NULL;
 page_t first_page = NULL;
+_Bool gc_running = false;
 
 cons_t copy(cons_t c) {
   if (c == NULL)
@@ -38,6 +39,7 @@ long microseconds(void) {
 #endif
 
 void gc_setup(void) {
+  gc_running = true;
 #ifdef GC_REPORT_STATUS
   long start_time = microseconds();
 #endif
@@ -52,11 +54,15 @@ void gc_setup(void) {
 }
 
 void gc_work(int steps) {
+  if (!gc_running && new_pages < 5)
+    /* Don't start unless we've consed enough pages */
+    return;
   if (first_page == NULL)
     gc_setup();
   for (int x = 0; x < steps; x++) {
     if (next_to_copy == next_cons) {
-      gc_setup();
+      first_page = NULL;
+      gc_running = false;
       return;
     }
     page_t this_page = page(next_to_copy);
@@ -68,7 +74,8 @@ void gc_work(int steps) {
        calls allocate_page() directly, so we could also run out of conses to 
        copy. */
     if (next_to_copy == next_cons) {
-      gc_setup();
+      first_page = NULL;
+      gc_running = false;
       return;
     }
     next_to_copy->car = copy(next_to_copy->car);
@@ -77,7 +84,7 @@ void gc_work(int steps) {
   }
 }
 
-int steps_per_cons = 2;
+int steps_per_cons = 3;
 cons_t cons(cons_t car, cons_t cdr) {
   gc_work(steps_per_cons);
   return make_cons(car, cdr);
