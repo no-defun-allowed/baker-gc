@@ -1,3 +1,7 @@
+#+BEGIN_QUOTE
+2018-10-08 08:31 <no-defun-allowed> i'm going to create the world's first conservative copying collector
+#+END_QUOTE
+
 A rough implementation of 
 [[https://www.cs.purdue.edu/homes/hosking/690M/p280-baker.pdf][ /List Processing in Real Time on a Serial Computer/ ]], which can collect
 allocated conses incrementally, and somewhat conservatively (on the stack and
@@ -10,6 +14,9 @@ roots (no pun intended) to [[https://medium.com/@MartinCracauer/llvms-garbage-co
 [[https://wiki.openjdk.java.net/display/shenandoah/Main][Shenandoah JVM garbage collector]], which are not likely to blow your limbs off.
 
 ** How it works
+
+#+CAPTION: Pages and some variables that point inside them
+[[./images/pages.png]]
 
 *** Allocation
 
@@ -24,14 +31,10 @@ The registers are scanned by using =setjmp= to "spill" the registers into the
 stack, and the stack can be carefully probed for values that look like pointers
 into the heap.
 
-We avoid scanning pinned conses multiple times by setting the least 
-significant bit of the cdr (which =cdr= will clear) of a pinned cons when we
-copy its slots. 
-
-/TODO:/ Checking what looks like a pointer can be done better with some 
-heuristics instead of iterating over pages most of the time; provided pages are
-allocated mostly contiguously, then we can eliminate most pointers outside the
-heap by checking for presence in an interval holding all pages.
+Checking what looks like a pointer can be done better with some heuristics 
+instead of iterating over pages most of the time; provided pages are allocated
+mostly contiguously, we can eliminate most pointers outside the heap by checking
+for presence in an interval holding all pages.
 
 *** Barriers
 
