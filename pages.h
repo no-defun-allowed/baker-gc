@@ -24,6 +24,7 @@ extern page_t last_page;
 extern cons_t next_cons;
 extern int new_pages;
 extern int last_pages;
+extern int threshold_pages;
 
 void allocate_page(void);
 _Bool in_page(cons_t pointer, page_t page);

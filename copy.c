@@ -54,7 +54,7 @@ void gc_setup(void) {
 }
 
 void gc_work(int steps) {
-  if (!gc_running && new_pages < 5)
+  if (!gc_running && new_pages < threshold_pages)
     /* Don't start unless we've consed enough pages */
     return;
   if (first_page == NULL)
