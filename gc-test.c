@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <limits.h>
 
 unsigned int g_seed = 0;
 inline int fastrand() { 
@@ -26,13 +27,20 @@ void print_room(room_t r) {
          threshold_pages);
 }
 
-cons_t make_list(int count) {
+cons_t make_garbage_list(int count) {
   cons_t list = NULL;
   for (int i = 0; i < count; i++) {
     cons_t this_cons = cons(NULL, list);
     if (fastrand() % 256 == 1)
       list = this_cons;
   }
+  return list;
+}
+
+cons_t make_list(int count) {
+  cons_t list = NULL;
+  for (int i = 0; i < count; i++)
+    list = cons(NULL, list);
   return list;
 }
 
@@ -54,7 +62,7 @@ cons_t make_tree(int depth) {
 }
 
 cons_t bar() {
-  cons_t b = make_list(2048);
+  cons_t b = make_garbage_list(2048);
   allocate_page();
   return b;
 }
@@ -91,7 +99,16 @@ cons_t test4() {
   puts("Test: generate less garbage to decrease the collection threshold.");
   /* Will the target decrease if we have fewer still-live pages? */
   for (int i = 0; i < 4096; i++)
-    make_list(128);
+    make_garbage_list(128);
+}
+
+cons_t test5() {
+  puts("Test: Will scanning be noticeably slower with more pages?");
+  threshold_pages = 0;
+  cons_t the_list = make_list(1000000);
+  threshold_pages = 0;
+  gc_work(1000000000);
+  return the_list;
 }
 
 int main() {
@@ -103,7 +120,7 @@ int main() {
   test2();
   test3();
   test4();
-  gc_work(1000000);
+  test5();
   print_room(room());
   return 0;
 }

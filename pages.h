@@ -1,6 +1,9 @@
 #ifndef PAGES_H
 #define PAGES_H
+
 #define PAGE_SIZE (1 << 15)
+#define CACHE_SIZE 8192
+
 #include <stdint.h>
 
 struct cons {

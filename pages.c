@@ -14,14 +14,6 @@ page_t last_page = NULL;
 cons_t next_cons = NULL;
 int new_pages = 0;
 
-void push_onto_list(page_t page, page_t* list) {
-  page->previous_page = *list;
-  if (*list != NULL) {
-    (*list)->next_page = page;
-  }
-  *list = page;
-}
-
 void allocate_page(void) {
   page_t new_page = memalign(PAGE_SIZE, PAGE_SIZE);
   if (!new_page) {
@@ -33,7 +25,10 @@ void allocate_page(void) {
   new_page->next_page = NULL;
   new_page->allocated = new_page->data;
   new_page->pinned = false;
-  push_onto_list(new_page, &last_page);
+  new_page->previous_page = last_page;
+  if (last_page != NULL)
+    last_page->next_page = new_page;
+  last_page = new_page;
   next_cons = new_page->data;
   new_pages++;
 }
@@ -51,6 +46,19 @@ _Bool in_page(cons_t pointer, page_t page) {
 void* low = NULL;
 void* high = NULL;
 
+// A cache of frequently retrieved pages, keyed by page
+struct page_entry {
+  page_t page;
+  _Bool present;
+};
+struct page_entry page_cache[CACHE_SIZE];
+void clear_page_cache(void) {
+  for (int i = 0; i < CACHE_SIZE; i++) {
+    struct page_entry entry = {NULL, false};
+    page_cache[i] = entry;
+  }
+}
+
 void set_interval(void) {
   low =  (void*)((intptr_t)~1);
   high = (void*)((intptr_t)0);
@@ -61,11 +69,31 @@ void set_interval(void) {
   }
 }
 
+cons_t car(cons_t c) { return c->forward->car; }
+cons_t cdr(cons_t c) { return c->forward->cdr; }
+page_t page(cons_t c) { return (page_t)((intptr_t)(c) / PAGE_SIZE * PAGE_SIZE); }
+_Bool forwarded(cons_t c) { return c->forward != c; }
+_Bool pinned(cons_t c) { return page(c)->pinned; }
+
+#define HASH_POINTER(x) (((intptr_t)x / PAGE_SIZE) % CACHE_SIZE)
 _Bool in_heap(cons_t pointer) {
+  /* Is this pointer even in bounds? */
   if (!((void*)pointer < high && (void*)pointer > low))
     return false;               // Quite obviously not in a page.
-  for (page_t page = oldspace; page != NULL; page = page->previous_page)
-    if (in_page(pointer, page)) return true;
+  /* Try the cached page */
+  struct page_entry cached_page = page_cache[HASH_POINTER(pointer)];
+  if (cached_page.page == page(pointer) && in_page(pointer, cached_page.page))
+    return cached_page.present;
+  /* Now scan the pages. */
+  for (page_t the_page = oldspace; the_page != NULL; the_page = the_page->previous_page)
+    if (in_page(pointer, the_page)) {
+      /* If we have a hit, put it in the cache for later. */
+      struct page_entry entry = {the_page, true};
+      page_cache[HASH_POINTER(the_page)] = entry;
+      return true;
+    }
+  struct page_entry entry = {page(pointer), false};
+  page_cache[HASH_POINTER(pointer)] = entry;
   return false;
 }
 
@@ -85,12 +113,6 @@ cons_t make_cons(cons_t car, cons_t cdr) {
   }
 }
 
-cons_t car(cons_t c) { return c->forward->car; }
-cons_t cdr(cons_t c) { return c->forward->cdr; }
-page_t page(cons_t c) { return (page_t)((intptr_t)(c) / PAGE_SIZE * PAGE_SIZE); }
-_Bool forwarded(cons_t c) { return c->forward != c; }
-_Bool pinned(cons_t c) { return page(c)->pinned; }
-
 void flip(void) {
 #ifdef GC_REPORT_STATUS
   puts("gc: Flipping...");
@@ -106,6 +128,7 @@ void flip(void) {
       page->next_page = NULL;
       page->previous_page = last_page;
       page->pinned = false;
+      last_page->next_page = page;
       last_page = page;
       pinned_pages++;
     } else {
@@ -123,6 +146,7 @@ void flip(void) {
   last_freed = freed_pages;
   last_pinned = pinned_pages;
   new_pages = 0;
+  clear_page_cache();
   set_interval();
   allocate_page();
 }
