@@ -7,12 +7,12 @@
 
 // Oldspace
 page_t oldspace = NULL;
-int last_pages = 0;
+int last_freed = 0;
+int last_pinned = 0;
 // Newspace
 page_t last_page = NULL;
 cons_t next_cons = NULL;
 int new_pages = 0;
-int threshold_pages = 1;
 
 void push_onto_list(page_t page, page_t* list) {
   page->previous_page = *list;
@@ -120,8 +120,8 @@ void flip(void) {
   /* set up the next oldspace and newspace */
   oldspace = last_page;
   last_page = NULL;
-  last_pages = new_pages;
-  threshold_pages = pinned_pages + new_pages / 2;
+  last_freed = freed_pages;
+  last_pinned = pinned_pages;
   new_pages = 0;
   set_interval();
   allocate_page();
@@ -140,6 +140,7 @@ room_t room(void) {
     newspace_bytes += (intptr_t)page->allocated - (intptr_t)page->data;
   }
   room_t the_room = {oldspace_pages, oldspace_bytes,
-                     newspace_pages, newspace_bytes};
+                     newspace_pages, newspace_bytes,
+                     last_freed, last_pinned};
   return the_room;
 }

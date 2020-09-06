@@ -23,8 +23,6 @@ typedef struct page* page_t;
 extern page_t last_page;
 extern cons_t next_cons;
 extern int new_pages;
-extern int last_pages;
-extern int threshold_pages;
 
 void allocate_page(void);
 _Bool in_page(cons_t pointer, page_t page);
@@ -44,6 +42,8 @@ struct room_data {
   long oldspace_bytes;
   long newspace_pages;
   long newspace_bytes;
+  long freed_pages;
+  long pinned_pages;
 };
 typedef struct room_data room_t;
 room_t room(void);

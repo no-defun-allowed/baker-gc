@@ -13,4 +13,5 @@ void gc_setup(void);
 void gc_work(int);
 cons_t cons(cons_t, cons_t);
 extern int steps_per_cons;
+extern int threshold_pages;
 #endif

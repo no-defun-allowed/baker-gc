@@ -16,6 +16,8 @@ void print_room(room_t r) {
   printf("Newspace: %ld bytes, %ld pages\n",
          r.newspace_bytes,
          r.newspace_pages);
+  printf("We will start collection after %d pages are allocated.\n",
+         threshold_pages);
 }
 
 cons_t make_list(int count) {
@@ -74,7 +76,7 @@ cons_t test2() {
 cons_t test3() {
   puts("Test: generate a large tree while producing a lot of garbage, to ");
   puts("      increase the collection threshold.");
-  cons_t t = make_tree(25);
+  cons_t t = make_tree(27);
   print_room(room());
   return t;
 }
