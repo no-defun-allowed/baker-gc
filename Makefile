@@ -1,4 +1,4 @@
-CFLAGS=-O3
+CFLAGS=-O3 -DGC_REPORT_STATUS
 CC=gcc
 
 test: gc-test.o copy.o scan-stack.o pages.o

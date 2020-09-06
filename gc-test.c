@@ -3,6 +3,12 @@
 #include <stdlib.h>
 #include <time.h>
 
+unsigned int g_seed = 0;
+inline int fastrand() { 
+  g_seed = (214013*g_seed+2531011); 
+  return (g_seed>>16)&0x7FFF; 
+} 
+
 void print_list(cons_t c) {
   for (cons_t this = c; this != NULL; this = cdr(this))
     printf("%p -> ", this);
@@ -24,7 +30,7 @@ cons_t make_list(int count) {
   cons_t list = NULL;
   for (int i = 0; i < count; i++) {
     cons_t this_cons = cons(NULL, list);
-    if (rand() % 256 == 1)
+    if (fastrand() % 256 == 1)
       list = this_cons;
   }
   return list;
@@ -35,7 +41,7 @@ cons_t make_tree(int depth) {
     return NULL;
   cons_t a = make_tree(depth - 1);
   cons_t b = make_tree(depth - 1);
-  switch (rand() % 4) {
+  switch (fastrand() % 4) {
   case 0:
     return NULL;
   case 1:
@@ -84,14 +90,14 @@ cons_t test3() {
 cons_t test4() {
   puts("Test: generate less garbage to decrease the collection threshold.");
   /* Will the target decrease if we have fewer still-live pages? */
-  for (int i = 0; i < 1024; i++)
-    make_list(64);
+  for (int i = 0; i < 4096; i++)
+    make_list(128);
 }
 
 int main() {
   char start = 0;
   start_of_stack = &start;
-  srand(time(NULL));
+  g_seed = time(NULL);
   
   test1();
   test2();

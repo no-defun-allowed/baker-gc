@@ -49,3 +49,12 @@ marker objects, allowing the client to unconditionally load the forwaring
 pointer. When an object has not been moved, this pointer points to the object
 itself; and when an object has been moved, it points to the newspace copy of
 the object. =car(x)= thus is equivalent to =x->forward->car=.
+
+*** Scheduling
+
+Garbage collections start after some number of pages, the /threshold/, have 
+been allocated after the last collection finished. The threshold is scaled to
+attempt to collect between 60% and 90% of the heap per collection; if a
+collection collects less than 60%, the threshold is doubled, and if a 
+collection collects more tha 90%, the threshold is halved. The threshold 
+defaults to 3 pages (about 96kB).

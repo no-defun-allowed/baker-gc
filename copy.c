@@ -64,10 +64,12 @@ void gc_stop(void) {
 #ifdef GC_REPORT_STATUS
   printf("gc: freed %.2f percent of the heap\n", freed_ratio * 100);
 #endif
+  /* Try to free between 60% and 90% of the heap per cycle. */
   if (freed_ratio < 0.6)
     threshold_pages *= 2;
   else if (freed_ratio > 0.9)
     threshold_pages /= 2;
+  /* And don't ever schedule for sooner than 3 pages. */
   if (threshold_pages < 3)
     threshold_pages = 3;
 #ifdef GC_REPORT_STATUS
