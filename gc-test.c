@@ -5,13 +5,13 @@
 #include <limits.h>
 
 unsigned int g_seed = 0;
-inline int fastrand() { 
+int fastrand() { 
   g_seed = (214013*g_seed+2531011); 
   return (g_seed>>16)&0x7FFF; 
 } 
 
 void print_list(cons_t c) {
-  for (cons_t this = c; this != NULL; this = cdr(this))
+  for (cons_t this = c; this != NULL; this = (cons_t)cdr(this))
     printf("%p -> ", this);
   printf("\n");
 }
@@ -30,7 +30,7 @@ void print_room(room_t r) {
 cons_t make_garbage_list(int count) {
   cons_t list = NULL;
   for (int i = 0; i < count; i++) {
-    cons_t this_cons = cons(NULL, list);
+    cons_t this_cons = cons(NULL, (obj_t)list);
     if (fastrand() % 256 == 1)
       list = this_cons;
   }
@@ -40,7 +40,7 @@ cons_t make_garbage_list(int count) {
 cons_t make_list(int count) {
   cons_t list = NULL;
   for (int i = 0; i < count; i++)
-    list = cons(NULL, list);
+    list = cons(NULL, (obj_t)list);
   return list;
 }
 
@@ -57,7 +57,7 @@ cons_t make_tree(int depth) {
   case 2:
     return b;
   case 3:
-    return cons(a, b);
+    return cons((obj_t)a, (obj_t)b);
   }
 }
 
@@ -81,7 +81,7 @@ cons_t test2() {
   puts("Test: copy a cons with (eq (car it) (cdr it)), which should still ");
   puts("      hold after copying.");
   cons_t a = cons(NULL, NULL);
-  cons_t b = cons(a, a);
+  cons_t b = cons((obj_t)a, (obj_t)a);
   gc_work(131072);
   printf("(%p . %p)\n", car(b), cdr(b));
   return b;
@@ -104,10 +104,7 @@ cons_t test4() {
 
 cons_t test5() {
   puts("Test: Will scanning be noticeably slower with more pages?");
-  threshold_pages = 0;
-  cons_t the_list = make_list(1000000);
-  threshold_pages = 0;
-  gc_work(1000000000);
+  cons_t the_list = make_list(1<<20);
   return the_list;
 }
 
@@ -121,6 +118,7 @@ int main() {
   test3();
   test4();
   test5();
+  gc_work(INT_MAX);
   print_room(room());
   return 0;
 }

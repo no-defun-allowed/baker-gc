@@ -6,28 +6,30 @@
 #include "pages.h"
 #include "copy.h"
 
-extern cons_t next_cons;
-cons_t next_to_copy = NULL;
+extern obj_t next_cons;
+obj_t next_to_copy = NULL;
 _Bool gc_running = false;
 _Bool disable_gc = false;
 int threshold_pages = 3;
 
-cons_t copy(cons_t c) {
+obj_t copy(obj_t cobj) {
+  cons_t c = (cons_t)cobj;
   if (c == NULL)
-    return c;
-  if (!in_heap(c))
-    return c;                   /* don't move cons in newspace */
+    return cobj;
+  if (!in_heap(cobj))
+    return cobj;                /* don't move cons in newspace */
   if (forwarded(c))
-    return c->forward;          /* don't duplicate already moved cons */
+    return (obj_t)c->forward; /* don't duplicate already moved cons */
   cons_t new_cons = make_cons(c->car, c->cdr);
   c->forward = new_cons;
-  return new_cons;
+  return (obj_t)new_cons;
 }
 
-void scan_cons(cons_t c) {
-  page(c)->pinned = true;
-  c->car = copy(c->car);
-  c->cdr = copy(c->cdr);
+void scan_cons(obj_t cobj) {
+  cons_t c = (cons_t)cobj;
+  page(cobj)->pinned = true;
+  c->car = copy((obj_t)c->car);
+  c->cdr = copy((obj_t)c->cdr);
 }
 
 #ifdef GC_REPORT_STATUS
@@ -103,14 +105,15 @@ void gc_work(int steps) {
       gc_stop();
       return;
     }
-    next_to_copy->car = copy(next_to_copy->car);
-    next_to_copy->cdr = copy(next_to_copy->cdr);
-    next_to_copy++;
+    cons_t this_cons = (cons_t)next_to_copy;
+    this_cons->car = copy(this_cons->car);
+    this_cons->cdr = copy(this_cons->cdr);
+    next_to_copy += sizeof(struct cons);
   }
 }
 
 int steps_per_cons = 3;
-cons_t cons(cons_t car, cons_t cdr) {
+cons_t cons(obj_t car, obj_t cdr) {
   cons_t the_cons = make_cons(car, cdr);
   if (!disable_gc)
     gc_work(steps_per_cons);

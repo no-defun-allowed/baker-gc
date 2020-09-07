@@ -3,10 +3,10 @@
 
 #include "pages.h"
 
-typedef void (*cons_consumer_t)(cons_t);
+typedef void (*obj_consumer_t)(obj_t);
 
-void print_cons(cons_t);
-void scan_stack(char*, cons_consumer_t);
+void print_cons(obj_t);
+void scan_stack(char*, obj_consumer_t);
 
 extern char* start_of_stack;
 

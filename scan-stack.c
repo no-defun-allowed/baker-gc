@@ -5,24 +5,25 @@
 #include <setjmp.h>
 #include "scan-stack.h"
 
-void print_cons(cons_t c) {
-  printf("%p = (%p . %p) on page %p \n", c, car(c), cdr(c), page(c));
+void print_cons(obj_t obj) {
+  cons_t c = (cons_t)obj;
+  printf("%p = (%p . %p) on page %p \n", c, car(c), cdr(c), page(obj));
 }
 
-void scan_stack2(char* start, char* end, cons_consumer_t k) {
+void scan_stack2(char* start, char* end, obj_consumer_t k) {
   for (char* position = start; position < end; position++) {
-    if (in_heap(*(cons_t*)position)) {
+    if (in_heap(*(obj_t*)position)) {
       // Push this pointer back to the start of the cons.
-      cons_t the_cons = *(cons_t*)position;
-      page_t the_page = page(the_cons);
-      size_t offset = (char*)the_cons - (char*)the_page;
+      obj_t  the_obj  = *(obj_t*)position;
+      page_t the_page = page(the_obj);
+      size_t offset = (char*)the_obj - (char*)the_page->data;
       offset = (offset / sizeof(struct cons)) * sizeof(struct cons);
-      k((cons_t)((char*)the_page + offset));
+      k((obj_t)((char*)the_page->data + offset));
     }
   }
 }
 
-void scan_stack(char* start, cons_consumer_t k) {
+void scan_stack(char* start, obj_consumer_t k) {
   jmp_buf j;
   setjmp(j);
   char* end = ((char*)(&j) + sizeof(j));

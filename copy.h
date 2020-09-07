@@ -7,11 +7,11 @@
 #include "scan-stack.h"
 
 extern _Bool disable_gc;
-cons_t copy(cons_t);
+obj_t copy(obj_t);
 
 void gc_setup(void);
 void gc_work(int);
-cons_t cons(cons_t, cons_t);
+cons_t cons(obj_t, obj_t);
 extern int steps_per_cons;
 extern int threshold_pages;
 #endif
