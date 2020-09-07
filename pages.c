@@ -145,6 +145,7 @@ void flip(void) {
       page->next_page = NULL;
       page->previous_page = last_page;
       page->pinned = false;
+      page->newspace = true;
       last_page->next_page = page;
       last_page = page;
       pinned_pages++;
