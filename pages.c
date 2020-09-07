@@ -106,6 +106,9 @@ _Bool in_heap(obj_t pointer) {
       page_cache[hash_page(the_page)] = entry;
       if (in_page(pointer, the_page))
         return true;
+      else
+        /* It won't be in another page then. */
+        break;
     }
   struct page_entry entry = {(void*)((intptr_t)pointer >> 3)};
   negative_cache[hash_pointer(pointer)] = entry;
