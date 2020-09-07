@@ -10,7 +10,7 @@ extern obj_t next_cons;
 obj_t next_to_copy = NULL;
 _Bool gc_running = false;
 _Bool disable_gc = false;
-int threshold_pages = 3;
+int threshold_pages = 10;
 
 obj_t copy(obj_t cobj) {
   cons_t c = (cons_t)cobj;
@@ -64,14 +64,14 @@ void gc_stop(void) {
 #ifdef GC_REPORT_STATUS
   printf("gc: Finished collecting; freed %.2f percent of the heap\n", freed_ratio * 100);
 #endif
-  /* Try to free between 60% and 90% of the heap per cycle. */
-  if (freed_ratio < 0.6)
+  /* Try to free between 75% and 95% of the heap per cycle. */
+  if (freed_ratio < 0.75)
     threshold_pages = threshold_pages * 4 / 3;
-  else if (freed_ratio > 0.9)
+  else if (freed_ratio > 0.95)
     threshold_pages = threshold_pages / 4 * 3;
-  /* And don't ever schedule for sooner than 3 pages. */
-  if (threshold_pages < 3)
-    threshold_pages = 3;
+  /* And don't ever schedule for sooner than 10 pages. */
+  if (threshold_pages < 10)
+    threshold_pages = 10;
 #ifdef GC_REPORT_STATUS
   printf("gc: threshold is now %d pages\n", threshold_pages);
 #endif
