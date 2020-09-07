@@ -25,6 +25,7 @@ void allocate_page(void) {
   new_page->allocated = (obj_t)new_page->rest;
   new_page->size = PAGE_SIZE;
   new_page->pinned = false;
+  new_page->newspace = true;
   /* Link this page into the list of pages. */
   new_page->next_page = NULL;
   new_page->previous_page = last_page;
@@ -52,13 +53,13 @@ void* high = NULL;
 // A cache of frequently retrieved pages, keyed by page
 struct page_entry {
   void* page;
-  _Bool present;
 };
 struct page_entry page_cache[CACHE_SIZE];
+// A cache of bogus pointers, keyed by pointer >> 3
 struct page_entry negative_cache[CACHE_SIZE];
 void clear_page_cache(void) {
   for (int i = 0; i < CACHE_SIZE; i++) {
-    struct page_entry entry = {NULL, false};
+    struct page_entry entry = {NULL};
     page_cache[i] = entry;
     negative_cache[i] = entry;
   }
@@ -68,9 +69,10 @@ void set_interval(void) {
   low =  (obj_t)((intptr_t)~1);
   high = (obj_t)((intptr_t)0);
   for (page_t page = oldspace; page != NULL; page = page->previous_page) {
-    low = (void*)page < (void*)low ? (void*)page : (void*)low;
+    void* start = page->data;
+    low = start < low ? start : low;
     void* end = page->allocated;
-    high = end > (void*)high ? end : (void*)high;
+    high = end > high ? end : high;
   }
 }
 
@@ -84,28 +86,28 @@ size_t hash_page(void* x) { return ((intptr_t)x / PAGE_SIZE) % CACHE_SIZE; }
 size_t hash_pointer(void* x) { return ((intptr_t)(x) >> 3) % CACHE_SIZE; }
 _Bool in_heap(obj_t pointer) {
   /* Is this pointer even in bounds? */
-  if (!((void*)pointer < high && (void*)pointer > low))
+  if ((void*)pointer > high || (void*)pointer < low)
     return false;               // Quite obviously not in a page.
 #ifndef GC_MOLASSES_SIMULATOR
   /* Try the cached page */
   struct page_entry cached_page = page_cache[hash_page(pointer)];
-  if (cached_page.present && in_page(pointer, cached_page.page))
+  if (cached_page.page != NULL && in_page(pointer, cached_page.page))
     return true;
   /* Test if this pointer is certainly out */
   cached_page = negative_cache[hash_pointer(pointer)];
-  if (cached_page.page == pointer && cached_page.present)
+  if (cached_page.page == (void*)((intptr_t)pointer))
     return false;
 #endif
   /* Now scan the pages. */
   for (page_t the_page = oldspace; the_page != NULL; the_page = the_page->previous_page)
     if (pointer >= (obj_t)the_page->data && pointer < end_of_page(the_page)) {
       /* If we have a hit, put it in the cache for later. */
-      struct page_entry entry = {the_page, true};
+      struct page_entry entry = {the_page};
       page_cache[hash_page(the_page)] = entry;
       if (in_page(pointer, the_page))
         return true;
     }
-  struct page_entry entry = {pointer, true};
+  struct page_entry entry = {(void*)((intptr_t)pointer >> 3)};
   negative_cache[hash_pointer(pointer)] = entry;
   return false;
 }
@@ -157,6 +159,8 @@ void flip(void) {
 #endif
   /* set up the next oldspace and newspace */
   oldspace = last_page;
+  for (page_t the_page = oldspace; the_page != NULL; the_page = the_page->previous_page)
+    the_page->newspace = false;
   last_page = NULL;
   last_freed = freed_pages;
   last_pinned = pinned_pages;

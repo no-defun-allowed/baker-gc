@@ -2,7 +2,7 @@
 #define PAGES_H
 
 #define PAGE_SIZE (1 << 15)
-#define CACHE_SIZE 8192
+#define CACHE_SIZE 16384
 
 #include <stdint.h>
 
@@ -18,7 +18,8 @@ struct page {
   struct page* previous_page;
   struct page* next_page;
   _Bool pinned : 1;
-  uint32_t size : 31;
+  _Bool newspace : 1;
+  uint32_t size;
   obj_t allocated;
   obj_t data;
   char rest[0];

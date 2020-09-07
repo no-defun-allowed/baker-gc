@@ -16,7 +16,7 @@ obj_t copy(obj_t cobj) {
   cons_t c = (cons_t)cobj;
   if (c == NULL)
     return cobj;
-  if (!in_heap(cobj))
+  if (page(cobj)->newspace)
     return cobj;                /* don't move cons in newspace */
   if (forwarded(c))
     return (obj_t)c->forward; /* don't duplicate already moved cons */
@@ -28,8 +28,8 @@ obj_t copy(obj_t cobj) {
 void scan_cons(obj_t cobj) {
   cons_t c = (cons_t)cobj;
   page(cobj)->pinned = true;
-  c->car = copy((obj_t)c->car);
-  c->cdr = copy((obj_t)c->cdr);
+  c->car = copy(c->car);
+  c->cdr = copy(c->cdr);
 }
 
 #ifdef GC_REPORT_STATUS
