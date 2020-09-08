@@ -95,7 +95,7 @@ _Bool in_heap(obj_t pointer) {
     return true;
   /* Test if this pointer is certainly out */
   cached_page = negative_cache[hash_pointer(pointer)];
-  if (cached_page.page == (void*)((intptr_t)pointer))
+  if (cached_page.page == (void*)((intptr_t)pointer >> 3))
     return false;
 #endif
   /* Now scan the pages. */
