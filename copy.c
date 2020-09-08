@@ -25,9 +25,9 @@ obj_t copy(obj_t cobj) {
   return (obj_t)new_cons;
 }
 
-void scan_cons(obj_t cobj) {
+void scan_cons(obj_t cobj, page_t page) {
   cons_t c = (cons_t)cobj;
-  page(cobj)->pinned = true;
+  page->pinned = true;
   c->car = copy(c->car);
   c->cdr = copy(c->cdr);
 }
@@ -91,7 +91,7 @@ void gc_work(int steps) {
     page_t this_page = page(next_to_copy);
     /* There appears to be nothing else to copy onto this page. 
        Move to the next one. */
-    if (!in_page(next_to_copy, this_page)) {
+    if (next_to_copy >= this_page->allocated) {
       if (this_page->next_page == NULL) {
         gc_stop();
         return;

@@ -27,7 +27,7 @@ void allocate_page(void) {
   uint32_t remaining_words = (PAGE_SIZE - ((intptr_t)new_page->rest - (intptr_t)new_page)) / WORD_BYTES;
   allocations_t allocation = page_allocation_sizes(remaining_words);
   /* Initialize allocation markers */
-  memset(new_page->rest, 0, remaining_words * WORD_BYTES);
+  memset(new_page->rest, 0, allocation.bitmap_size * WORD_BYTES);
   intptr_t data_offset = allocation.bitmap_size * WORD_BYTES;
   new_page->data = (obj_t)(new_page->rest + data_offset);
   new_page->allocated = new_page->data;
@@ -91,16 +91,19 @@ page_t page(obj_t c) { return (page_t)((intptr_t)(c) / PAGE_SIZE * PAGE_SIZE); }
 _Bool forwarded(cons_t c) { return c->forward != c; }
 _Bool pinned(obj_t c) { return page(c)->pinned; }
 
-obj_t start_of_object_in_page(obj_t pointer, page_t page) {
-  return closest_previous_bit((allocation_bitmap_t)page->rest, pointer, page->data);
+object_location_t start_of_object_in_page(obj_t pointer, page_t page) {
+  return (object_location_t){closest_previous_bit((allocation_bitmap_t)page->rest,
+                                                  pointer,
+                                                  page->data),
+                             page};
 }
 
 size_t hash_page(void* x) { return ((intptr_t)x / PAGE_SIZE) % CACHE_SIZE; }
 size_t hash_pointer(void* x) { return ((intptr_t)(x) >> 3) % CACHE_SIZE; }
-obj_t in_heap(obj_t pointer) {
+object_location_t in_heap(obj_t pointer) {
   /* Is this pointer even in bounds? */
   if ((void*)pointer > high || (void*)pointer < low)
-    return NULL;               // Quite obviously not in a page.
+    return (object_location_t){NULL, NULL}; // Quite obviously not in a page.
 #ifndef GC_MOLASSES_SIMULATOR
   /* Try the cached page */
   struct page_entry cached_page = page_cache[hash_page(pointer)];
@@ -109,7 +112,7 @@ obj_t in_heap(obj_t pointer) {
   /* Test if this pointer is certainly out */
   cached_page = negative_cache[hash_pointer(pointer)];
   if (cached_page.page == (void*)((intptr_t)pointer >> 3))
-    return NULL;
+    return (object_location_t){NULL, NULL};
 #endif
   /* Now scan the pages. */
   for (page_t the_page = oldspace; the_page != NULL; the_page = the_page->previous_page)
@@ -125,7 +128,7 @@ obj_t in_heap(obj_t pointer) {
     }
   struct page_entry entry = {(void*)((intptr_t)pointer >> 3)};
   negative_cache[hash_pointer(pointer)] = entry;
-  return NULL;
+  return (object_location_t){NULL, NULL};
 }
 
 cons_t make_cons(obj_t car, obj_t cdr) {

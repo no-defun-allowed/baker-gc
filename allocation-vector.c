@@ -25,11 +25,11 @@ void set_allocation_bit(allocation_bitmap_t bitmap, char* address, char* base) {
   bitmap[word_offset] |= (intptr_t)(1) << bit_offset;
 }
 
-#define BIT_TEST(word, bit) ((word & (1 << (bit))) != 0)
+#define BIT_TEST(word, bit) ((word & ((intptr_t)1 << (bit))) != 0)
 /* Find the address of the object start with greatest address represented in a
    word.*/
 char* decode_word(char* base, intptr_t word) {
-  for (int n = WORD_BITS - 1; n >= 0; n--)
+  for (int n = 0; n < WORD_BITS; n++)
     if (BIT_TEST(word, n))
       return base + (WORD_BITS - 1 - n) * WORD_BYTES;
   return NULL;
@@ -42,7 +42,7 @@ char* closest_previous_bit(allocation_bitmap_t bitmap, char* address, char* base
   uint32_t bit_offset  = WORD_BITS - 1 - (offset % WORD_BITS);
   intptr_t this_word = bitmap[word_offset] >> bit_offset;
   if (this_word != 0)
-    return decode_word(base + word_offset * WORD_BITS / WORD_BYTES, this_word << bit_offset);
+    return decode_word(base + word_offset * WORD_BYTES * WORD_BITS, this_word << bit_offset);
   /* Keep trying bits until we would go past the base word */
   char* this_base; uint32_t this_word_offset;
   for (this_base = base + word_offset - WORD_BYTES,

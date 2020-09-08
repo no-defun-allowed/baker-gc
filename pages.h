@@ -27,13 +27,19 @@ struct page {
 };
 typedef struct page* page_t;
 
+struct object_location {
+  obj_t object;
+  page_t page;
+};
+typedef struct object_location object_location_t;
+
 extern page_t last_page;
 extern obj_t next_cons;
 extern int new_pages;
 
 void allocate_page(void);
 _Bool in_page(obj_t pointer, page_t page);
-obj_t in_heap(obj_t pointer);
+struct object_location in_heap(obj_t pointer);
 cons_t make_cons(obj_t, obj_t);
 
 obj_t car(cons_t);
