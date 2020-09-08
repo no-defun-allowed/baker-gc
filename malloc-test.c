@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <limits.h>
 
 unsigned int g_seed = 0;
 int fastrand() { 
@@ -44,6 +43,8 @@ cons_t make_garbage_list(int count) {
     cons_t this_cons = cons(NULL, list);
     if (fastrand() % 256 == 1)
       list = this_cons;
+    else
+      free(this_cons);          /* just free this cons, not the list */
   }
   return list;
 }
@@ -63,10 +64,14 @@ cons_t make_tree(int depth) {
   cons_t b = make_tree(depth - 1);
   switch (fastrand() % 4) {
   case 0:
+    free_cons(a);
+    free_cons(b);
     return NULL;
   case 1:
+    free_cons(b);
     return a;
   case 2:
+    free_cons(a);
     return b;
   case 3:
     return cons(a, b);
@@ -94,11 +99,11 @@ cons_t test3() {
   return t;
 }
 
-cons_t test4() {
+void test4() {
   puts("Test: generate less garbage to decrease the collection threshold.");
   /* Will the target decrease if we have fewer still-live pages? */
   for (int i = 0; i < 4096; i++)
-    make_garbage_list(128);
+    free_cons(make_garbage_list(128));
 }
 
 cons_t test5() {
@@ -114,7 +119,7 @@ int main() {
   /* test2 creates two references to the same cons; we can't free it easily. */
   /* test2(); */
   free_cons(test3());
-  free_cons(test4());
+  test4();
   free_cons(test5());
   return 0;
 }
