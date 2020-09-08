@@ -1,5 +1,6 @@
 #include <malloc.h>
 #include <stdint.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -14,18 +15,26 @@ page_t last_page = NULL;
 obj_t next_cons = NULL;
 int new_pages = 0;
 
+#define CEIL(x, y) (((x) + (y) - 1) / (y))
 void allocate_page(void) {
   page_t new_page = memalign(PAGE_SIZE, PAGE_SIZE);
   if (!new_page) {
     perror("Failed to allocate a page");
     abort();
   }
+  
+  /* Compute the page's bitmap and data sizes */
+  uint32_t remaining_words = (PAGE_SIZE - ((intptr_t)new_page->rest - (intptr_t)new_page)) / WORD_BYTES;
+  allocations_t allocation = page_allocation_sizes(remaining_words);
   /* Initialize allocation markers */
-  new_page->data = (obj_t)new_page->rest;
-  new_page->allocated = (obj_t)new_page->rest;
+  memset(new_page->rest, 0, remaining_words * WORD_BYTES);
+  intptr_t data_offset = allocation.bitmap_size * WORD_BYTES;
+  new_page->data = (obj_t)(new_page->rest + data_offset);
+  new_page->allocated = new_page->data;
   new_page->size = PAGE_SIZE;
   new_page->pinned = false;
   new_page->newspace = true;
+  
   /* Link this page into the list of pages. */
   new_page->next_page = NULL;
   new_page->previous_page = last_page;
@@ -82,21 +91,25 @@ page_t page(obj_t c) { return (page_t)((intptr_t)(c) / PAGE_SIZE * PAGE_SIZE); }
 _Bool forwarded(cons_t c) { return c->forward != c; }
 _Bool pinned(obj_t c) { return page(c)->pinned; }
 
+obj_t start_of_object_in_page(obj_t pointer, page_t page) {
+  return closest_previous_bit((allocation_bitmap_t)page->rest, pointer, page->data);
+}
+
 size_t hash_page(void* x) { return ((intptr_t)x / PAGE_SIZE) % CACHE_SIZE; }
 size_t hash_pointer(void* x) { return ((intptr_t)(x) >> 3) % CACHE_SIZE; }
-_Bool in_heap(obj_t pointer) {
+obj_t in_heap(obj_t pointer) {
   /* Is this pointer even in bounds? */
   if ((void*)pointer > high || (void*)pointer < low)
-    return false;               // Quite obviously not in a page.
+    return NULL;               // Quite obviously not in a page.
 #ifndef GC_MOLASSES_SIMULATOR
   /* Try the cached page */
   struct page_entry cached_page = page_cache[hash_page(pointer)];
   if (cached_page.page != NULL && in_page(pointer, cached_page.page))
-    return true;
+    return start_of_object_in_page(pointer, cached_page.page);
   /* Test if this pointer is certainly out */
   cached_page = negative_cache[hash_pointer(pointer)];
   if (cached_page.page == (void*)((intptr_t)pointer >> 3))
-    return false;
+    return NULL;
 #endif
   /* Now scan the pages. */
   for (page_t the_page = oldspace; the_page != NULL; the_page = the_page->previous_page)
@@ -105,14 +118,14 @@ _Bool in_heap(obj_t pointer) {
       struct page_entry entry = {the_page};
       page_cache[hash_page(the_page)] = entry;
       if (in_page(pointer, the_page))
-        return true;
+        return start_of_object_in_page(pointer, the_page);
       else
         /* It won't be in another page then. */
         break;
     }
   struct page_entry entry = {(void*)((intptr_t)pointer >> 3)};
   negative_cache[hash_pointer(pointer)] = entry;
-  return false;
+  return NULL;
 }
 
 cons_t make_cons(obj_t car, obj_t cdr) {
@@ -120,6 +133,7 @@ cons_t make_cons(obj_t car, obj_t cdr) {
   if (last_page != NULL &&
       (next_cons + sizeof(struct cons)) < end_of_page(last_page)) {
     cons_t this = (cons_t)next_cons;
+    set_allocation_bit((allocation_bitmap_t)last_page->rest, next_cons, last_page->data);
     next_cons += sizeof(struct cons);
     this->car = car;
     this->cdr = cdr;

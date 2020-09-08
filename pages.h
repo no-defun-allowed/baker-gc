@@ -1,10 +1,11 @@
 #ifndef PAGES_H
 #define PAGES_H
 
-#define PAGE_SIZE (1 << 15)
+#define PAGE_SIZE (1 << 13)
 #define CACHE_SIZE 16384
 
 #include <stdint.h>
+#include "allocation-vector.h"
 
 typedef char* obj_t;
 
@@ -32,7 +33,7 @@ extern int new_pages;
 
 void allocate_page(void);
 _Bool in_page(obj_t pointer, page_t page);
-_Bool in_heap(obj_t pointer);
+obj_t in_heap(obj_t pointer);
 cons_t make_cons(obj_t, obj_t);
 
 obj_t car(cons_t);

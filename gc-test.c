@@ -105,6 +105,7 @@ cons_t test4() {
 cons_t test5() {
   puts("Test: Will scanning be noticeably slower with more pages?");
   cons_t the_list = make_list(1<<20);
+  for (cons_t step = the_list; step != NULL; step = (cons_t)cdr(step)) { }
   return the_list;
 }
 

@@ -1,7 +1,7 @@
-CFLAGS=-O3
+CFLAGS=-O3 -g
 CC=gcc
 
-test: gc-test.o copy.o scan-stack.o pages.o
+test: gc-test.o copy.o scan-stack.o pages.o allocation-vector.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 malloc-test:
