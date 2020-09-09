@@ -5,6 +5,7 @@
 #define CACHE_SIZE 16384
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "allocation-vector.h"
 
 typedef char* obj_t;
@@ -44,9 +45,10 @@ cons_t make_cons(obj_t, obj_t);
 
 obj_t car(cons_t);
 obj_t cdr(cons_t);
-page_t page(obj_t);
 _Bool forwarded(cons_t);
-_Bool pinned(obj_t);
+cons_t forwarding(cons_t);
+_Bool in_newspace(cons_t);
+void set_in_newspace(cons_t, _Bool);
 
 void flip(void);
 

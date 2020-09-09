@@ -7,7 +7,8 @@
 
 void print_cons(obj_t obj, page_t p) {
   cons_t c = (cons_t)obj;
-  printf("%p = (%p . %p) on page %p \n", c, car(c), cdr(c), page(obj));
+  printf("%p = (%p . %p) ⇒ %p on page %p \n",
+         c, car(c), cdr(c), forwarding(c), p);
 }
 
 void scan_stack2(char* start, char* end, obj_consumer_t k) {

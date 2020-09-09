@@ -1,8 +1,6 @@
 #include <malloc.h>
-#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include "pages.h"
 
@@ -14,6 +12,7 @@ int last_pinned = 0;
 page_t last_page = NULL;
 obj_t next_cons = NULL;
 int new_pages = 0;
+char newspace_bit = 1;
 
 #define CEIL(x, y) (((x) + (y) - 1) / (y))
 void allocate_page(void) {
@@ -66,11 +65,14 @@ struct page_entry {
 struct page_entry page_cache[CACHE_SIZE];
 // A cache of bogus pointers, keyed by pointer >> 3
 struct page_entry negative_cache[CACHE_SIZE];
+
+struct page_entry newspace_cache[CACHE_SIZE];
 void clear_page_cache(void) {
   for (int i = 0; i < CACHE_SIZE; i++) {
     struct page_entry entry = {NULL};
     page_cache[i] = entry;
     negative_cache[i] = entry;
+    newspace_cache[i] = entry;
   }
 }
 
@@ -85,11 +87,15 @@ void set_interval(void) {
   }
 }
 
-obj_t car(cons_t c) { return c->forward->car; }
-obj_t cdr(cons_t c) { return c->forward->cdr; }
-page_t page(obj_t c) { return (page_t)((intptr_t)(c) / PAGE_SIZE * PAGE_SIZE); }
-_Bool forwarded(cons_t c) { return c->forward != c; }
-_Bool pinned(obj_t c) { return page(c)->pinned; }
+cons_t forwarding(cons_t c) { return (cons_t)((intptr_t)(c->forward) & ~(intptr_t)1); }
+_Bool in_newspace(cons_t c) { return ((intptr_t)c->forward & 1) == newspace_bit; }
+void set_in_newspace(cons_t c, _Bool newspace) {
+  intptr_t base = (intptr_t)(c->forward) & ~(intptr_t)(1);
+  c->forward = (cons_t)(base | (newspace == newspace_bit));
+}
+obj_t car(cons_t c) { return c->car; }
+obj_t cdr(cons_t c) { return c->cdr; }
+_Bool forwarded(cons_t c) { return forwarding(c) != c; }
 
 object_location_t start_of_object_in_page(obj_t pointer, page_t page) {
   return (object_location_t){closest_previous_bit((allocation_bitmap_t)page->rest,
@@ -141,6 +147,7 @@ cons_t make_cons(obj_t car, obj_t cdr) {
     this->car = car;
     this->cdr = cdr;
     this->forward = this;
+    set_in_newspace(this, true);
     last_page->allocated += sizeof(struct cons);
     return this;
   } else {
@@ -157,6 +164,7 @@ void flip(void) {
   /* clear up oldspace */
   int freed_pages = 0, pinned_pages = 0;
   page_t page = oldspace;
+  newspace_bit = 1 - newspace_bit;
   while (page != NULL) {
     page_t next_page;
     next_page = page->previous_page;
@@ -169,6 +177,9 @@ void flip(void) {
       last_page->next_page = page;
       last_page = page;
       pinned_pages++;
+      /* Update newspace bits. */
+      for (cons_t object = (cons_t)page->data; object < (cons_t)page->allocated; object++)
+        set_in_newspace(object, true);
     } else {
       free(page);
       freed_pages++;

@@ -12,6 +12,10 @@ allocated conses incrementally, and somewhat conservatively (on the stack and
 registers). However, the client must use a read barrier (as implemented by the
 =car= and =cdr= functions provided.) 
 
+Actually, no, it's a replication copying collector. It copies everything 
+reachable from the roots to newspace, then updates all the references in
+referenced conses.
+
 This utterly abuses =setjmp= and how stacks appear to work on my machine, so
 by using this code, you agree to not sue me for limbs lost to it. One can trace
 roots (no pun intended) to [[https://medium.com/@MartinCracauer/llvms-garbage-collection-facilities-and-sbcl-s-generational-gc-a13eedfb1b31][SBCL's semi-conservative copying collector]] and the
@@ -46,9 +50,7 @@ for presence in an interval holding all pages.
 
 We use a /Brooks forwarding pointer/ instead of replacing moved conses with 
 marker objects, allowing the client to unconditionally load the forwaring 
-pointer. When an object has not been moved, this pointer points to the object
-itself; and when an object has been moved, it points to the newspace copy of
-the object. =car(x)= thus is equivalent to =x->forward->car=.
+pointer. 
 
 *** Scheduling
 

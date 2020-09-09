@@ -3,12 +3,14 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "pages.h"
 #include "copy.h"
 
 extern obj_t next_cons;
 obj_t next_to_copy = NULL;
-_Bool gc_running = false;
+page_t this_page;
+enum gc_state current_state = STOPPED;
 _Bool disable_gc = false;
 int threshold_pages = 10;
 
@@ -16,10 +18,10 @@ obj_t copy(obj_t cobj) {
   cons_t c = (cons_t)cobj;
   if (c == NULL)
     return cobj;
-  if (page(cobj)->newspace)
+  if (in_newspace(c))
     return cobj;                /* don't move cons in newspace */
   if (forwarded(c))
-    return (obj_t)c->forward; /* don't duplicate already moved cons */
+    return (obj_t)forwarding(c); /* don't duplicate already moved cons */
   cons_t new_cons = make_cons(c->car, c->cdr);
   c->forward = new_cons;
   return (obj_t)new_cons;
@@ -28,8 +30,15 @@ obj_t copy(obj_t cobj) {
 void scan_cons(obj_t cobj, page_t page) {
   cons_t c = (cons_t)cobj;
   page->pinned = true;
-  c->car = copy(c->car);
-  c->cdr = copy(c->cdr);
+  copy(cobj);
+}
+void move_cons(obj_t cobj, page_t page) {
+  cons_t c = (cons_t)cobj;
+  if (!page->newspace) {
+    page->pinned = true;
+    c->car = c->forward->car;
+    c->cdr = c->forward->cdr;
+  }
 }
 
 #ifdef GC_REPORT_STATUS
@@ -42,12 +51,13 @@ long microseconds(void) {
 #endif
 
 void gc_setup(void) {
-  gc_running = true;
+  current_state = COPYING;
 #ifdef GC_REPORT_STATUS
   long start_time = microseconds();
 #endif
   flip();
   next_to_copy = last_page->data;
+  this_page = last_page;
   scan_stack((char*)start_of_stack, scan_cons);
 #ifdef GC_REPORT_STATUS
   long end_time = microseconds();
@@ -56,8 +66,9 @@ void gc_setup(void) {
 }
 
 void gc_stop(void) {
+  scan_stack((char*)start_of_stack, move_cons);
   next_to_copy = NULL;
-  gc_running = false;
+  current_state = STOPPED;
   room_t the_room = room();
   float freed_ratio = (float)(the_room.freed_pages) /
                       (float)(the_room.freed_pages + the_room.newspace_pages + the_room.pinned_pages);
@@ -78,7 +89,7 @@ void gc_stop(void) {
 }
 
 void gc_work(int steps) {
-  if (!gc_running && new_pages < threshold_pages)
+  if (current_state == STOPPED && new_pages < threshold_pages)
     /* Don't start unless we've consed enough pages */
     return;
   if (next_to_copy == NULL)
@@ -88,7 +99,6 @@ void gc_work(int steps) {
       gc_stop();
       return;
     }
-    page_t this_page = page(next_to_copy);
     /* There appears to be nothing else to copy onto this page. 
        Move to the next one. */
     if (next_to_copy >= this_page->allocated) {
@@ -97,6 +107,7 @@ void gc_work(int steps) {
         return;
       }
       next_to_copy = this_page->next_page->data;
+      this_page = this_page->next_page;
     }
     /* next_cons could be at the start of a page with no conses if the user
        calls allocate_page() directly, so we could also run out of conses to 

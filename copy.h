@@ -6,6 +6,8 @@
 #include "pages.h"
 #include "scan-stack.h"
 
+enum gc_state { STOPPED, COPYING, CLEARING_NEWSPACE_BITS };
+
 extern _Bool disable_gc;
 obj_t copy(obj_t);
 

@@ -12,7 +12,7 @@ int fastrand() {
 
 void print_list(cons_t c) {
   for (cons_t this = c; this != NULL; this = (cons_t)cdr(this))
-    printf("%p -> ", this);
+    printf("%p (%s) -> ", this, in_newspace(c) ? "new" : "old");
   printf("\n");
 }
 
@@ -23,6 +23,8 @@ void print_room(room_t r) {
   printf("Newspace: %ld bytes, %ld pages\n",
          r.newspace_bytes,
          r.newspace_pages);
+  printf("Last freed %ld pages, pinned %ld pages\n",
+         r.freed_pages, r.pinned_pages);
   printf("We will start collection after %d pages are allocated.\n",
          threshold_pages);
 }
@@ -39,8 +41,9 @@ cons_t make_garbage_list(int count) {
 
 cons_t make_list(int count) {
   cons_t list = NULL;
-  for (int i = 0; i < count; i++)
+  for (int i = 0; i < count; i++) {
     list = cons(NULL, (obj_t)list);
+  }
   return list;
 }
 
@@ -71,6 +74,7 @@ cons_t test1() {
   puts("      but some parts may be copied.");
   cons_t b = bar();
   print_list(b);
+  threshold_pages = 0;
   gc_work(131072);
   print_list(b);
   print_room(room());
@@ -82,6 +86,7 @@ cons_t test2() {
   puts("      hold after copying.");
   cons_t a = cons(NULL, NULL);
   cons_t b = cons((obj_t)a, (obj_t)a);
+  threshold_pages = 0;
   gc_work(131072);
   printf("(%p . %p)\n", car(b), cdr(b));
   return b;
@@ -105,7 +110,8 @@ cons_t test4() {
 cons_t test5() {
   puts("Test: Will scanning be noticeably slower with more pages?");
   cons_t the_list = make_list(1<<20);
-  for (cons_t step = the_list; step != NULL; step = (cons_t)cdr(step)) { }
+  gc_work(INT_MAX);
+  print_room(room());
   return the_list;
 }
 
@@ -119,6 +125,9 @@ int main() {
   test3();
   test4();
   test5();
+  threshold_pages = 0;
+  gc_work(INT_MAX);
+  threshold_pages = 0;
   gc_work(INT_MAX);
   print_room(room());
   return 0;
