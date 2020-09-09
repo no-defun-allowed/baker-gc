@@ -24,6 +24,7 @@ obj_t copy(obj_t cobj) {
     return (obj_t)forwarding(c); /* don't duplicate already moved cons */
   cons_t new_cons = make_cons(c->car, c->cdr);
   c->forward = new_cons;
+  set_in_newspace(c, false);
   return (obj_t)new_cons;
 }
 
@@ -32,12 +33,16 @@ void scan_cons(obj_t cobj, page_t page) {
   page->pinned = true;
   copy(cobj);
 }
+int conses_pinned;
 void move_cons(obj_t cobj, page_t page) {
   cons_t c = (cons_t)cobj;
-  if (!page->newspace) {
+  if (!in_newspace(c)) {
     page->pinned = true;
     c->car = c->forward->car;
     c->cdr = c->forward->cdr;
+    // c->forward = c;
+    set_in_newspace(c, true);
+    conses_pinned++;
   }
 }
 
@@ -50,14 +55,51 @@ long microseconds(void) {
 }
 #endif
 
+void set_threshold(void) {
+  room_t the_room = room();
+  if (the_room.freed_pages + the_room.pinned_pages > 0) {
+    float freed_ratio = (float)(the_room.freed_pages) /
+      (float)(the_room.freed_pages + the_room.newspace_pages);
+#ifdef GC_REPORT_STATUS
+    printf("gc: Finished collecting; freed %.2f percent of the heap\n", freed_ratio * 100);
+#endif
+    /* Try to free between 75% and 95% of the heap per cycle. */
+    if (freed_ratio < 0.75)
+      threshold_pages = threshold_pages * 4 / 3;
+    else if (freed_ratio > 0.95)
+      threshold_pages = threshold_pages / 4 * 3;
+    /* And don't ever schedule for sooner than 10 pages. */
+    if (threshold_pages < 10)
+      threshold_pages = 10;
+  } else {
+#ifdef GC_REPORT_STATUS
+    printf("gc: Finished collecting; freed 0 pages\n");
+#endif    
+  }
+#ifdef GC_REPORT_STATUS
+  printf("gc: threshold is now %d pages\n", threshold_pages);
+#endif
+}
+
 void gc_setup(void) {
+  if (last_page == NULL)
+    return;                     /* Nothing to GC! */
   current_state = COPYING;
+  conses_pinned = 0;
+#ifdef GC_REPORT_STATUS
+  printf("gc: Scanning for conses to fix up...\n");
+#endif
+  scan_stack((char*)start_of_stack, move_cons);
+#ifdef GC_REPORT_STATUS
+  printf("gc: Fixed up %d conses\n", conses_pinned);
+#endif  
 #ifdef GC_REPORT_STATUS
   long start_time = microseconds();
 #endif
   flip();
   next_to_copy = last_page->data;
   this_page = last_page;
+  set_threshold();
   scan_stack((char*)start_of_stack, scan_cons);
 #ifdef GC_REPORT_STATUS
   long end_time = microseconds();
@@ -66,26 +108,9 @@ void gc_setup(void) {
 }
 
 void gc_stop(void) {
-  scan_stack((char*)start_of_stack, move_cons);
   next_to_copy = NULL;
+  this_page = NULL;
   current_state = STOPPED;
-  room_t the_room = room();
-  float freed_ratio = (float)(the_room.freed_pages) /
-                      (float)(the_room.freed_pages + the_room.newspace_pages + the_room.pinned_pages);
-#ifdef GC_REPORT_STATUS
-  printf("gc: Finished collecting; freed %.2f percent of the heap\n", freed_ratio * 100);
-#endif
-  /* Try to free between 75% and 95% of the heap per cycle. */
-  if (freed_ratio < 0.75)
-    threshold_pages = threshold_pages * 4 / 3;
-  else if (freed_ratio > 0.95)
-    threshold_pages = threshold_pages / 4 * 3;
-  /* And don't ever schedule for sooner than 10 pages. */
-  if (threshold_pages < 10)
-    threshold_pages = 10;
-#ifdef GC_REPORT_STATUS
-  printf("gc: threshold is now %d pages\n", threshold_pages);
-#endif
 }
 
 void gc_work(int steps) {
@@ -101,11 +126,7 @@ void gc_work(int steps) {
     }
     /* There appears to be nothing else to copy onto this page. 
        Move to the next one. */
-    if (next_to_copy >= this_page->allocated) {
-      if (this_page->next_page == NULL) {
-        gc_stop();
-        return;
-      }
+    if (!in_page(next_to_copy, this_page)) {
       next_to_copy = this_page->next_page->data;
       this_page = this_page->next_page;
     }

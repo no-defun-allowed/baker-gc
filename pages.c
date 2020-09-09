@@ -65,14 +65,11 @@ struct page_entry {
 struct page_entry page_cache[CACHE_SIZE];
 // A cache of bogus pointers, keyed by pointer >> 3
 struct page_entry negative_cache[CACHE_SIZE];
-
-struct page_entry newspace_cache[CACHE_SIZE];
 void clear_page_cache(void) {
   for (int i = 0; i < CACHE_SIZE; i++) {
     struct page_entry entry = {NULL};
     page_cache[i] = entry;
     negative_cache[i] = entry;
-    newspace_cache[i] = entry;
   }
 }
 
@@ -88,7 +85,7 @@ void set_interval(void) {
 }
 
 cons_t forwarding(cons_t c) { return (cons_t)((intptr_t)(c->forward) & ~(intptr_t)1); }
-_Bool in_newspace(cons_t c) { return ((intptr_t)c->forward & 1) == newspace_bit; }
+_Bool in_newspace(cons_t c) { return ((intptr_t)c->forward & (intptr_t)1) == newspace_bit; }
 void set_in_newspace(cons_t c, _Bool newspace) {
   intptr_t base = (intptr_t)(c->forward) & ~(intptr_t)(1);
   c->forward = (cons_t)(base | (newspace == newspace_bit));
@@ -164,6 +161,7 @@ void flip(void) {
   /* clear up oldspace */
   int freed_pages = 0, pinned_pages = 0;
   page_t page = oldspace;
+  /* Flip the newspace bit to have all new objects look old. */
   newspace_bit = 1 - newspace_bit;
   while (page != NULL) {
     page_t next_page;
@@ -177,10 +175,11 @@ void flip(void) {
       last_page->next_page = page;
       last_page = page;
       pinned_pages++;
-      /* Update newspace bits. */
+      /* Pinned objects are still old. */
       for (cons_t object = (cons_t)page->data; object < (cons_t)page->allocated; object++)
-        set_in_newspace(object, true);
+        set_in_newspace(object, false);
     } else {
+      memset(page, 0xAA, page->size);
       free(page);
       freed_pages++;
     }
@@ -212,8 +211,6 @@ room_t room(void) {
   for (page_t page = last_page; page != NULL; page = page->previous_page) {
     newspace_pages++;
     intptr_t this_size = (intptr_t)page->allocated - (intptr_t)page->data;
-    if (this_size > PAGE_SIZE)
-      printf("Oddly sized page: %p\n", page);
     newspace_bytes += this_size;
   }
   room_t the_room = {oldspace_pages, oldspace_bytes,
