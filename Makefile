@@ -1,4 +1,4 @@
-CFLAGS=-g
+CFLAGS=-O3
 CC=gcc
 
 test: gc-test.o copy.o scan-stack.o pages.o allocation-vector.o

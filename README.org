@@ -6,15 +6,16 @@
 nor would she have been /even close/ to being first to do it. But 2020
 =no-defun-allowed= has a conservative copying collector at least.
 
-This is a rough implementation of 
++This is a rough implementation of 
 [[https://www.cs.purdue.edu/homes/hosking/690M/p280-baker.pdf][ /List Processing in Real Time on a Serial Computer/ ]], which can collect
 allocated conses incrementally, and somewhat conservatively (on the stack and
 registers). However, the client must use a read barrier (as implemented by the
-=car= and =cdr= functions provided.) 
+=car= and =cdr= functions provided.)+
 
 Actually, no, it's a replication copying collector. It copies everything 
 reachable from the roots to newspace, then updates all the references in
-referenced conses.
+referenced conses. This only requires a write barrier to replicate modifications
+if there is a newspace copy of a cons.
 
 This utterly abuses =setjmp= and how stacks appear to work on my machine, so
 by using this code, you agree to not sue me for limbs lost to it. One can trace
