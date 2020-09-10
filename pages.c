@@ -176,8 +176,9 @@ void flip(void) {
       last_page = page;
       pinned_pages++;
       /* Pinned objects are still old. */
-      for (cons_t object = (cons_t)page->data; object < (cons_t)page->allocated; object++)
+      for (cons_t object = (cons_t)page->data; object < (cons_t)page->allocated; object++) {
         set_in_newspace(object, false);
+      }
     } else {
       /* memset(page, 0xAA, page->size); */
       free(page);

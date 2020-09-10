@@ -39,10 +39,11 @@ void move_cons(obj_t cobj, page_t page) {
   cons_t c = (cons_t)cobj;
   if (!in_newspace(c)) {
     page->pinned = true;
-    c->car = forwarding(c)->car;
-    c->cdr = forwarding(c)->cdr;
-    // c->forward = c;
-    set_in_newspace(c, true);
+    cons_t source = forwarding(c);
+    c->car = source->car;
+    c->cdr = source->cdr;
+    c->forward = (cons_t)copy((obj_t)source);
+    set_in_newspace(c, false);
     conses_pinned++;
   }
 }
