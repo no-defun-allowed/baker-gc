@@ -179,7 +179,7 @@ void flip(void) {
       for (cons_t object = (cons_t)page->data; object < (cons_t)page->allocated; object++)
         set_in_newspace(object, false);
     } else {
-      memset(page, 0xAA, page->size);
+      /* memset(page, 0xAA, page->size); */
       free(page);
       freed_pages++;
     }

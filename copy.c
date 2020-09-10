@@ -22,6 +22,7 @@ obj_t copy(obj_t cobj) {
     return cobj;                /* don't move cons in newspace */
   if (forwarded(c))
     return (obj_t)forwarding(c); /* don't duplicate already moved cons */
+  /* okay, actually copy the cons */
   cons_t new_cons = make_cons(c->car, c->cdr);
   c->forward = new_cons;
   set_in_newspace(c, false);
@@ -38,8 +39,8 @@ void move_cons(obj_t cobj, page_t page) {
   cons_t c = (cons_t)cobj;
   if (!in_newspace(c)) {
     page->pinned = true;
-    c->car = c->forward->car;
-    c->cdr = c->forward->cdr;
+    c->car = forwarding(c)->car;
+    c->cdr = forwarding(c)->cdr;
     // c->forward = c;
     set_in_newspace(c, true);
     conses_pinned++;

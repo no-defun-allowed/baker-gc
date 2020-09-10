@@ -112,7 +112,6 @@ cons_t test5() {
   cons_t the_list = make_list(1 << 20);
   gc_work(INT_MAX);
   print_room(room());
-  for (cons_t c = the_list; c != NULL; c = (cons_t)cdr(c)) { }
   return the_list;
 }
 
@@ -126,10 +125,8 @@ int main() {
   test3();
   test4();
   test5();
-  /* threshold_pages = 0; */
-  /* gc_work(INT_MAX); */
-  /* threshold_pages = 0; */
-  /* gc_work(INT_MAX); */
+  threshold_pages = 0;
+  gc_work(INT_MAX);
   print_room(room());
   return 0;
 }

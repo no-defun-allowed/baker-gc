@@ -1,4 +1,4 @@
-CFLAGS=-g -DGC_REPORT_STATUS -DGC_MOLASSES_SIMULATOR
+CFLAGS=-g
 CC=gcc
 
 test: gc-test.o copy.o scan-stack.o pages.o allocation-vector.o
