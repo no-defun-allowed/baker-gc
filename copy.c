@@ -55,6 +55,7 @@ void move_cons(obj_t cobj, page_t page) {
   }
 }
 
+/* The maximum duration (in microseconds) that we want to keep pauses under. */
 #define PAUSE_TARGET 3000
 
 long last_newspace_size = 1;

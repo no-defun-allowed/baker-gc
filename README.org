@@ -37,27 +37,36 @@ from the start of a page to its end, as typical for compacting collectors.
 
 *** Scanning
 
-At the start of a collection run, the stack and registers are scanned for roots.
-The registers are scanned by using =setjmp= to "spill" the registers into the
-stack, and the stack can be carefully probed for values that look like pointers
-into the heap.
+At the start of a collection cycle, the stack and registers are scanned for 
+roots.The registers are scanned by using =setjmp= to "spill" the registers into 
+the stack, and the stack can be carefully probed for values that look like 
+pointers into the heap.
 
 Checking what looks like a pointer can be done better with some heuristics 
 instead of iterating over pages most of the time; provided pages are allocated
 mostly contiguously, we can eliminate most pointers outside the heap by checking
-for presence in an interval holding all pages.
+for presence in an interval holding all pages. Pages are also cached, so that
+most searching can be eliminated.
+
+At the end of a collection cycle, the stack and registers are scanned for 
+conses that must be pinned (as we cannot update the conservative roots), and
+have their slots fixed up, by copying them from the copy. 
 
 *** Barriers
 
-We use a /Brooks forwarding pointer/ instead of replacing moved conses with 
-marker objects, allowing the client to unconditionally load the forwaring 
-pointer. 
+Each object has a /forwarding pointer/, either to itself, or its copy in 
+newspace. With /replication copying/, this pointer is only used when writing, to
+replicate modifications in oldspace to newspace. Checking pointer (physical) 
+equality also requires retrieving the forwarding pointer to get canonical
+pointers to compare.
 
 *** Scheduling
 
 Garbage collections start after some number of pages, the /threshold/, have 
-been allocated after the last collection finished. The threshold is scaled to
-attempt to collect between 60% and 90% of the heap per collection; if a
-collection collects less than 60%, the threshold is doubled, and if a 
-collection collects more tha 90%, the threshold is halved. The threshold 
-defaults to 3 pages (about 96kB).
+been allocated after the last collection finished. In order of priority, the
+threshold is chosen so that:
+
+- it is never below 10 pages (about 80kB),
+- stack scanning completes in less than 3 milliseconds (adjustable with 
+  =PAUSE_TARGET=), and
+- the heap remains between 0.5x and 1.3x its last size after a collection.
