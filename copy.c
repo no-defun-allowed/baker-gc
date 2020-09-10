@@ -14,6 +14,13 @@ enum gc_state current_state = STOPPED;
 _Bool disable_gc = false;
 int threshold_pages = 10;
 
+#include <sys/time.h>
+long microseconds(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec * 1000000 + tv.tv_usec;
+}
+
 obj_t copy(obj_t cobj) {
   cons_t c = (cons_t)cobj;
   if (c == NULL)
@@ -48,28 +55,31 @@ void move_cons(obj_t cobj, page_t page) {
   }
 }
 
-#ifdef GC_REPORT_STATUS
-#include <sys/time.h>
-long microseconds(void) {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return tv.tv_sec * 1000000 + tv.tv_usec;
-}
-#endif
+#define PAUSE_TARGET 3000
+
+long last_newspace_size = 1;
+long last_pause_time = 0;
 
 void set_threshold(void) {
   room_t the_room = room();
-  if (the_room.freed_pages + the_room.pinned_pages > 0) {
-    float freed_ratio = (float)(the_room.freed_pages) /
-      (float)(the_room.freed_pages + the_room.newspace_pages);
+  if (the_room.oldspace_bytes > 0) {
+    float size_ratio = (float)(the_room.newspace_bytes) /
+                       (float)(last_newspace_size);
 #ifdef GC_REPORT_STATUS
-    printf("gc: Finished collecting; freed %.2f percent of the heap\n", freed_ratio * 100);
+    printf("gc: Finished collecting; heap is now %.2fx its last size\n", size_ratio);
 #endif
-    /* Try to free between 75% and 95% of the heap per cycle. */
-    if (freed_ratio < 0.75)
+    /* First of all, try to keep pause times down. */
+    if (last_pause_time > PAUSE_TARGET) {
+      float time_ratio = (float)(last_pause_time) / (float)(PAUSE_TARGET);
+      /* Assuming that there is a linear relationship between pause time and
+       threshold, then we should be able to scale down by how much we went
+      over the target to keep under the target.*/
+      threshold_pages = (int)((float)threshold_pages / time_ratio);
+    /* Try to keep the heap between 0.5x and 1.3x its last size. */
+    } else if (size_ratio < 0.5)
+      threshold_pages = threshold_pages * 3 / 4;
+    else if (size_ratio > 1.3)
       threshold_pages = threshold_pages * 4 / 3;
-    else if (freed_ratio > 0.95)
-      threshold_pages = threshold_pages / 4 * 3;
     /* And don't ever schedule for sooner than 10 pages. */
     if (threshold_pages < 10)
       threshold_pages = 10;
@@ -81,6 +91,7 @@ void set_threshold(void) {
 #ifdef GC_REPORT_STATUS
   printf("gc: threshold is now %d pages\n", threshold_pages);
 #endif
+  last_newspace_size = the_room.newspace_bytes;
 }
 
 void gc_setup(void) {
@@ -95,24 +106,23 @@ void gc_setup(void) {
 #ifdef GC_REPORT_STATUS
   printf("gc: Fixed up %d conses\n", conses_pinned);
 #endif  
-#ifdef GC_REPORT_STATUS
   long start_time = microseconds();
-#endif
   flip();
   next_to_copy = last_page->data;
   this_page = last_page;
-  set_threshold();
   scan_stack((char*)start_of_stack, scan_cons);
-#ifdef GC_REPORT_STATUS
   long end_time = microseconds();
+#ifdef GC_REPORT_STATUS  
   printf("gc: STW took %ld microseconds\n", end_time - start_time);
 #endif
+  last_pause_time = end_time - start_time;
 }
 
 void gc_stop(void) {
   next_to_copy = NULL;
   this_page = NULL;
   current_state = STOPPED;
+  set_threshold();
 }
 
 void gc_work(int steps) {
