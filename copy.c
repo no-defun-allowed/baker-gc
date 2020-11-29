@@ -41,24 +41,11 @@ void scan_cons(obj_t cobj, page_t page) {
   page->pinned = true;
   copy(cobj);
 }
-int conses_pinned;
-void move_cons(obj_t cobj, page_t page) {
-  cons_t c = (cons_t)cobj;
-  if (!in_newspace(c)) {
-    page->pinned = true;
-    cons_t source = forwarding(c);
-    c->car = source->car;
-    c->cdr = source->cdr;
-    c->forward = (cons_t)copy((obj_t)source);
-    set_in_newspace(c, false);
-    conses_pinned++;
-  }
-}
 
 /* The maximum duration (in microseconds) that we want to keep pauses under. */
 #define PAUSE_TARGET 3000
 
-long last_newspace_size = 1;
+long last_newspace_size = PAGE_SIZE * 10;
 long last_pause_time = 0;
 
 void set_threshold(void) {
@@ -99,14 +86,6 @@ void gc_setup(void) {
   if (last_page == NULL)
     return;                     /* Nothing to GC! */
   current_state = COPYING;
-  conses_pinned = 0;
-#ifdef GC_REPORT_STATUS
-  printf("gc: Scanning for conses to fix up...\n");
-#endif
-  scan_stack((char*)start_of_stack, move_cons);
-#ifdef GC_REPORT_STATUS
-  printf("gc: Fixed up %d conses\n", conses_pinned);
-#endif  
   long start_time = microseconds();
   flip();
   next_to_copy = last_page->data;
@@ -159,6 +138,8 @@ void gc_work(int steps) {
 
 int steps_per_cons = 3;
 cons_t cons(obj_t car, obj_t cdr) {
+  car = (car == NULL) ? NULL : (obj_t)forwarding((cons_t)car);
+  cdr = (cdr == NULL) ? NULL : (obj_t)forwarding((cons_t)cdr);
   cons_t the_cons = make_cons(car, cdr);
   if (!disable_gc)
     gc_work(steps_per_cons);
